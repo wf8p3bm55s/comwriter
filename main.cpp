@@ -1,53 +1,66 @@
 ﻿#include <QCoreApplication>
-#include <QQueue>
 #include <QTextStream>
-#include <QDebug>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+
+void printError(const QString &message)
+{
+    static QTextStream standardError(stderr);
+    standardError << message;
+    standardError.flush();
+}
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-    QTextStream standardError(stderr);
+
+    QTextStream standardOutput(stdout);
 
     if (argc != 5) {
-        standardError <<
-                      a.tr("Number of arguments not equal 4.");
+        printError(QObject::tr("Number of arguments not equal 4."));
         return 1;
     }
 
-    QQueue<int> data;
+    QByteArray data;
 
     for (int i = 1; i < 5; i++) {
         bool ok;
-        data.enqueue(QString(argv[i]).toInt(&ok));
+        data.append(QString::number(QString(argv[i]).toInt(&ok)));
 
         if (!ok) {
-            standardError <<
-                          a.tr("Can't parse arguments.");
+            printError(QObject::tr("Can't parse arguments."));
             return 1;
         }
     }
 
-    QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
+    QList<QSerialPortInfo> portsInfo = QSerialPortInfo::availablePorts();
 
-    if (ports.isEmpty()) {
-        standardError <<
-                      a.tr("Can't find any serial port.");
+    if (portsInfo.isEmpty()) {
+        printError(QObject::tr("Can't find any serial port."));
         return 1;
     }
 
-    qDebug() << "Arguments:";
+    QSerialPort port(portsInfo.first());
 
-    for (const auto &number : data) {
-        qDebug() << number;
+    if (!port.setBaudRate(QSerialPort::Baud2400)) {
+        printError(QObject::tr("Can't set baud rate. Error code: ") + port.error());
+        return 1;
     }
 
-    qDebug() << "Ports:";
-
-    for (const auto &port : ports) {
-        qDebug() << port.portName();
+    if (!port.open(QIODevice::WriteOnly)) {
+        printError(QObject::tr("Can't open serial port. Error code: ") + port.error());
+        return 1;
     }
+
+    if (port.write(data) == -1) {
+        printError(QObject::tr("Serial port write error. Error code: ") + port.error());
+        port.close();
+        return 1;
+    }
+
+    standardOutput << QObject::tr("Succesfuly written.");
+    standardOutput.flush();
+    port.close();
 
     return a.exec();
 }
