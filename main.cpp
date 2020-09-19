@@ -43,24 +43,29 @@ int main(int argc, char *argv[])
     QSerialPort port(portsInfo.first());
 
     if (!port.setBaudRate(QSerialPort::Baud2400)) {
-        printError(QObject::tr("Can't set baud rate. Error code: ") + port.error());
+        printError(QObject::tr("Can't set baud rate. Error code: ") +
+                   QString::number(port.error()));
         return 1;
     }
 
     if (!port.open(QIODevice::WriteOnly)) {
-        printError(QObject::tr("Can't open serial port. Error code: ") + port.error());
+        printError(QObject::tr("Can't open serial port. Error code: ") +
+                   QString::number(port.error()));
         return 1;
     }
 
     if (port.write(data) == -1) {
-        printError(QObject::tr("Serial port write error. Error code: ") + port.error());
+        printError(QObject::tr("Serial port write error. Error code: ") +
+                   QString::number(port.error()));
         port.close();
         return 1;
     }
 
+    port.flush();
+    port.close();
+
     standardOutput << QObject::tr("Succesfuly written.");
     standardOutput.flush();
-    port.close();
 
     return a.exec();
 }
